@@ -22,10 +22,16 @@ export default {
 				border: 'hsl(var(--border))',
 				input: 'hsl(var(--input))',
 				ring: 'hsl(var(--ring))',
-				background: 'hsl(var(--background))',
+				background: {
+					DEFAULT: 'hsl(var(--background))',
+					secondary: 'hsl(var(--background-secondary))',
+					tertiary: 'hsl(var(--background-tertiary))'
+				},
 				foreground: 'hsl(var(--foreground))',
 				primary: {
 					DEFAULT: 'hsl(var(--primary))',
+					dark: 'hsl(var(--primary-dark))',
+					light: 'hsl(var(--primary-light))',
 					foreground: 'hsl(var(--primary-foreground))'
 				},
 				secondary: {
@@ -36,6 +42,8 @@ export default {
 					DEFAULT: 'hsl(var(--destructive))',
 					foreground: 'hsl(var(--destructive-foreground))'
 				},
+				success: 'hsl(var(--success))',
+				warning: 'hsl(var(--warning))',
 				muted: {
 					DEFAULT: 'hsl(var(--muted))',
 					foreground: 'hsl(var(--muted-foreground))'
@@ -50,8 +58,14 @@ export default {
 				},
 				card: {
 					DEFAULT: 'hsl(var(--card))',
+					secondary: 'hsl(var(--card-secondary))',
 					foreground: 'hsl(var(--card-foreground))'
 				},
+				waveform: {
+					DEFAULT: 'hsl(var(--waveform))',
+					progress: 'hsl(var(--waveform-progress))'
+				},
+				'audio-control': 'hsl(var(--audio-control))',
 				sidebar: {
 					DEFAULT: 'hsl(var(--sidebar-background))',
 					foreground: 'hsl(var(--sidebar-foreground))',
@@ -62,6 +76,22 @@ export default {
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
 				}
+			},
+			backgroundImage: {
+				'gradient-primary': 'var(--gradient-primary)',
+				'gradient-secondary': 'var(--gradient-secondary)',
+				'gradient-card': 'var(--gradient-card)',
+				'gradient-hero': 'var(--gradient-hero)'
+			},
+			boxShadow: {
+				'sm': 'var(--shadow-sm)',
+				'md': 'var(--shadow-md)',
+				'lg': 'var(--shadow-lg)',
+				'glow': 'var(--shadow-glow)'
+			},
+			transitionProperty: {
+				'smooth': 'var(--transition-smooth)',
+				'bounce': 'var(--transition-bounce)'
 			},
 			borderRadius: {
 				lg: 'var(--radius)',
