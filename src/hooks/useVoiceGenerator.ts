@@ -1,10 +1,14 @@
 import { useState, useCallback } from 'react';
 import { useVoiceStore } from '../store/voiceStore';
 import { GeneratedAudio } from '../types';
+import { textToPhonemes } from '../lib/textToPhonemes';
+import { SynthEngine } from '../lib/synthEngine';
+import { VoiceProfiles, DefaultVoice } from '../lib/voiceConfig';
 
 export const useVoiceGenerator = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [synthEngine] = useState(() => new SynthEngine());
   
   const { selectedVoice, audioSettings, addGeneratedAudio } = useVoiceStore();
 
@@ -18,19 +22,34 @@ export const useVoiceGenerator = () => {
     setError(null);
 
     try {
-      // Simulate API call - replace with actual TTS implementation
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Convert text to phonemes
+      const phonemes = textToPhonemes(text.trim());
       
-      // Create mock audio blob URL (in real implementation, this would be from your TTS service)
-      const mockAudioUrl = createMockAudio(text);
+      // Get voice configuration
+      const voiceConfig = VoiceProfiles[selectedVoice.id] || DefaultVoice;
+      
+      // Apply user settings to voice config
+      const modifiedConfig = {
+        ...voiceConfig,
+        basePitch: voiceConfig.basePitch * (audioSettings.pitch / 1.0),
+        speechRateWPM: voiceConfig.speechRateWPM * audioSettings.speed,
+        syllablesPerSecond: voiceConfig.syllablesPerSecond * audioSettings.speed,
+        loudness: voiceConfig.loudness * (audioSettings.volume / 1.0),
+      };
+
+      // Generate audio buffer
+      const audioBuffer = await synthEngine.generateAudioBuffer(phonemes, modifiedConfig);
+      
+      // Convert to blob URL
+      const audioUrl = await audioBufferToUrl(audioBuffer);
       
       const generatedAudio: GeneratedAudio = {
         id: `audio_${Date.now()}`,
         text: text.trim(),
         voiceId: selectedVoice.id,
         settings: { ...audioSettings },
-        audioUrl: mockAudioUrl,
-        duration: estimateDuration(text),
+        audioUrl,
+        duration: audioBuffer.duration,
         createdAt: new Date(),
       };
 
@@ -38,29 +57,41 @@ export const useVoiceGenerator = () => {
       return generatedAudio;
       
     } catch (err) {
+      console.error('Speech generation error:', err);
       setError('Failed to generate speech. Please try again.');
       return null;
     } finally {
       setIsGenerating(false);
     }
-  }, [selectedVoice, audioSettings, addGeneratedAudio]);
+  }, [selectedVoice, audioSettings, addGeneratedAudio, synthEngine]);
 
   const generatePreview = useCallback(async (text: string, voiceId: string) => {
-    // Generate a short preview without saving to history
     setIsGenerating(true);
     setError(null);
 
     try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      const mockAudioUrl = createMockAudio(text.substring(0, 50));
-      return mockAudioUrl;
+      // Generate short preview (first 50 characters)
+      const previewText = text.substring(0, 50);
+      const phonemes = textToPhonemes(previewText);
+      
+      const voiceConfig = VoiceProfiles[voiceId] || DefaultVoice;
+      const modifiedConfig = {
+        ...voiceConfig,
+        syllablesPerSecond: voiceConfig.syllablesPerSecond * 1.2, // Slightly faster for preview
+      };
+
+      // Play directly without creating audio buffer
+      await synthEngine.generateSequence(phonemes, modifiedConfig);
+      
+      return 'preview-played'; // Indicate success
     } catch (err) {
+      console.error('Preview generation error:', err);
       setError('Failed to generate preview');
       return null;
     } finally {
       setIsGenerating(false);
     }
-  }, []);
+  }, [synthEngine]);
 
   return {
     generateSpeech,
@@ -71,23 +102,8 @@ export const useVoiceGenerator = () => {
   };
 };
 
-// Mock audio generation (replace with actual TTS implementation)
-const createMockAudio = (text: string): string => {
-  // Create a simple oscillator-based audio for demo purposes
-  const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-  const duration = Math.min(text.length * 0.1, 30); // Max 30 seconds
-  
-  const buffer = audioContext.createBuffer(1, audioContext.sampleRate * duration, audioContext.sampleRate);
-  const data = buffer.getChannelData(0);
-  
-  for (let i = 0; i < data.length; i++) {
-    // Generate speech-like patterns
-    const frequency = 100 + Math.sin(i * 0.01) * 50; // Varying frequency
-    const amplitude = 0.1 * Math.sin(i * 0.001); // Varying amplitude
-    data[i] = amplitude * Math.sin(frequency * i / audioContext.sampleRate * 2 * Math.PI);
-  }
-  
-  // Convert to blob URL
+// Convert AudioBuffer to blob URL
+const audioBufferToUrl = async (buffer: AudioBuffer): Promise<string> => {
   const wav = audioBufferToWav(buffer);
   const blob = new Blob([wav], { type: 'audio/wav' });
   return URL.createObjectURL(blob);

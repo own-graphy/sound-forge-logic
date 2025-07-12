@@ -85,10 +85,13 @@ export const VoiceLab: React.FC = () => {
       setCurrentSentence(prev => prev + 1);
     }
     
-    toast({
-      title: "Recording Complete",
-      description: `Sentence ${currentSentence + 1} recorded successfully!`,
-    });
+    // Use setTimeout to avoid state update during render
+    setTimeout(() => {
+      toast({
+        title: "Recording Complete",
+        description: `Sentence ${currentSentence + 1} recorded successfully!`,
+      });
+    }, 0);
   };
 
   const playbackRecording = (index: number) => {
