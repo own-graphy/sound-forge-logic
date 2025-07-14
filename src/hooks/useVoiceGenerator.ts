@@ -67,6 +67,7 @@ export const useVoiceGenerator = () => {
   }, [selectedVoice, audioSettings, addGeneratedAudio, synthEngine]);
 
   const generatePreview = useCallback(async (text: string, voiceId: string) => {
+    console.log('🎤 Starting preview generation for text:', text, 'voice:', voiceId);
     setIsGenerating(true);
     setError(null);
 
@@ -76,16 +77,21 @@ export const useVoiceGenerator = () => {
       const language = detectLanguage(previewText);
       const phonemes = textToPhonemes(previewText, language);
       
+      console.log('🎤 Preview phonemes:', phonemes);
+      
       const voiceConfig = VoiceProfiles[voiceId] || DefaultVoice;
       const modifiedConfig = {
         ...voiceConfig,
         syllablesPerSecond: voiceConfig.syllablesPerSecond * 1.2, // Slightly faster for preview
       };
 
+      console.log('🎤 Using voice config:', modifiedConfig);
+
       // Initialize audio context and play directly
       await synthEngine.initialize();
       await synthEngine.generateSequence(phonemes, modifiedConfig);
       
+      console.log('🎤 Preview generation completed successfully');
       return 'preview-played'; // Indicate success
     } catch (err) {
       console.error('Preview generation error:', err);

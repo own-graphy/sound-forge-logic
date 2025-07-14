@@ -19,9 +19,16 @@ export class SynthEngine {
   }
 
   async initialize() {
+    console.log('🔊 Initializing audio context, current state:', this.context.state);
     if (this.context.state === 'suspended') {
+      console.log('🔊 Resuming suspended audio context...');
       await this.context.resume();
+      console.log('🔊 Audio context resumed, new state:', this.context.state);
     }
+    
+    // Set master volume to ensure audio is audible
+    this.masterGain.gain.setValueAtTime(0.5, this.context.currentTime);
+    console.log('🔊 Master volume set to 0.5');
   }
 
   synthesizePhoneme(phoneme: string, config: VoiceConfig, startTime: number, duration: number): PhonemeAudioNode | null {
@@ -29,19 +36,17 @@ export class SynthEngine {
       return null; // Silent pause
     }
 
+    console.log(`🎵 Creating oscillator for phoneme "${phoneme}"`);
+    
     const oscillator = this.context.createOscillator();
     const gainNode = this.context.createGain();
     const filter1 = this.context.createBiquadFilter();
     const filter2 = this.context.createBiquadFilter();
     const filter3 = this.context.createBiquadFilter();
-    
-    // Add reverb for more natural sound
-    const convolver = this.context.createConvolver();
-    const reverbGain = this.context.createGain();
-    reverbGain.gain.setValueAtTime(0.15, startTime); // Subtle reverb
 
     // Configure oscillator based on phoneme type
     const phonemeConfig = this.getPhonemeConfig(phoneme, config);
+    console.log(`🎵 Phoneme config for "${phoneme}":`, phonemeConfig);
     
     oscillator.type = phonemeConfig.type;
     oscillator.frequency.setValueAtTime(phonemeConfig.frequency, startTime);
@@ -49,53 +54,60 @@ export class SynthEngine {
     // Add natural pitch variation (jitter) with smoother transitions
     const jitterAmount = config.jitter * config.basePitch;
     const pitchVariation = (Math.random() - 0.5) * jitterAmount;
-    oscillator.frequency.exponentialRampToValueAtTime(
-      Math.max(50, phonemeConfig.frequency + pitchVariation),
-      startTime + duration
-    );
+    const targetFreq = Math.max(50, phonemeConfig.frequency + pitchVariation);
+    oscillator.frequency.exponentialRampToValueAtTime(targetFreq, startTime + duration);
+
+    console.log(`🎵 Frequency: ${phonemeConfig.frequency} -> ${targetFreq}`);
 
     // Configure formant filters with better Q values for realism
+    const f1 = config.formants[0] * phonemeConfig.formantMultiplier;
+    const f2 = config.formants[1] * phonemeConfig.formantMultiplier;
+    const f3 = config.formants[2] * phonemeConfig.formantMultiplier;
+    
     filter1.type = 'bandpass';
-    filter1.frequency.setValueAtTime(config.formants[0] * phonemeConfig.formantMultiplier, startTime);
-    filter1.Q.setValueAtTime(6, startTime); // Higher Q for clearer formants
+    filter1.frequency.setValueAtTime(f1, startTime);
+    filter1.Q.setValueAtTime(6, startTime);
 
     filter2.type = 'bandpass';
-    filter2.frequency.setValueAtTime(config.formants[1] * phonemeConfig.formantMultiplier, startTime);
+    filter2.frequency.setValueAtTime(f2, startTime);
     filter2.Q.setValueAtTime(8, startTime);
 
     filter3.type = 'bandpass';
-    filter3.frequency.setValueAtTime(config.formants[2] * phonemeConfig.formantMultiplier, startTime);
+    filter3.frequency.setValueAtTime(f3, startTime);
     filter3.Q.setValueAtTime(4, startTime);
 
+    console.log(`🎵 Formants: F1=${f1}, F2=${f2}, F3=${f3}`);
+
     // Improved envelope with more natural attack/release
-    const attackTime = phonemeConfig.isVoiced ? 0.015 : 0.005; // Faster attack for consonants
+    const attackTime = phonemeConfig.isVoiced ? 0.015 : 0.005;
     const decayTime = 0.03;
     const sustainLevel = 0.8;
-    const releaseTime = phonemeConfig.isVoiced ? 0.08 : 0.04; // Shorter release for consonants
+    const releaseTime = phonemeConfig.isVoiced ? 0.08 : 0.04;
+
+    const maxAmplitude = Math.min(0.3, phonemeConfig.amplitude); // Cap amplitude to prevent clipping
+    console.log(`🎵 Amplitude: ${maxAmplitude}, Attack: ${attackTime}, Release: ${releaseTime}`);
 
     gainNode.gain.setValueAtTime(0, startTime);
-    gainNode.gain.exponentialRampToValueAtTime(phonemeConfig.amplitude * 0.01, startTime + 0.001);
-    gainNode.gain.exponentialRampToValueAtTime(phonemeConfig.amplitude, startTime + attackTime);
-    gainNode.gain.exponentialRampToValueAtTime(phonemeConfig.amplitude * sustainLevel, startTime + attackTime + decayTime);
-    gainNode.gain.setValueAtTime(phonemeConfig.amplitude * sustainLevel, startTime + duration - releaseTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.001, startTime + 0.001);
+    gainNode.gain.exponentialRampToValueAtTime(maxAmplitude, startTime + attackTime);
+    gainNode.gain.exponentialRampToValueAtTime(maxAmplitude * sustainLevel, startTime + attackTime + decayTime);
+    gainNode.gain.setValueAtTime(maxAmplitude * sustainLevel, startTime + duration - releaseTime);
     gainNode.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
 
-    // Enhanced audio graph with subtle reverb
+    // Connect the audio graph
     oscillator.connect(filter1);
     filter1.connect(filter2);
     filter2.connect(filter3);
     filter3.connect(gainNode);
-    
-    // Main signal
     gainNode.connect(this.masterGain);
-    
-    // Reverb path for natural sound
-    gainNode.connect(reverbGain);
-    reverbGain.connect(this.masterGain);
+
+    console.log(`🎵 Audio graph connected for "${phoneme}"`);
 
     // Schedule playback
     oscillator.start(startTime);
     oscillator.stop(startTime + duration);
+
+    console.log(`🎵 Oscillator scheduled: start=${startTime}, stop=${startTime + duration}`);
 
     return {
       oscillator,
@@ -239,21 +251,36 @@ export class SynthEngine {
   }
 
   async generateSequence(phonemes: string[], config: VoiceConfig): Promise<void> {
+    console.log('🔊 Starting audio generation with phonemes:', phonemes);
+    console.log('🔊 Voice config:', config);
+    
     await this.initialize();
+    console.log('🔊 Audio context initialized, state:', this.context.state);
 
     const phonemeDuration = 1 / config.syllablesPerSecond; // Base duration
     const pauseDuration = phonemeDuration * 0.3; // Shorter pause
     
     let currentTime = this.context.currentTime + 0.1; // Small delay to start
+    console.log('🔊 Starting synthesis at time:', currentTime);
 
-    for (const phoneme of phonemes) {
+    for (let i = 0; i < phonemes.length; i++) {
+      const phoneme = phonemes[i];
       if (phoneme === '_PAUSE_') {
         currentTime += pauseDuration;
+        console.log(`🔊 Pause ${i}: duration ${pauseDuration}s`);
       } else {
-        this.synthesizePhoneme(phoneme, config, currentTime, phonemeDuration);
+        console.log(`🔊 Synthesizing phoneme ${i}: "${phoneme}" at time ${currentTime}`);
+        const node = this.synthesizePhoneme(phoneme, config, currentTime, phonemeDuration);
+        if (node) {
+          console.log(`🔊 Successfully created audio node for phoneme "${phoneme}"`);
+        } else {
+          console.log(`🔊 Failed to create audio node for phoneme "${phoneme}"`);
+        }
         currentTime += phonemeDuration;
       }
     }
+    
+    console.log('🔊 Audio sequence scheduled, total duration:', currentTime - this.context.currentTime);
   }
 
   // Export to WAV for download with configurable bit rate
