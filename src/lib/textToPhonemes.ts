@@ -1,5 +1,5 @@
-// Basic phoneme mapping for common words and letter combinations
-const phonemeMap: Record<string, string[]> = {
+// Enhanced phoneme mapping for English and Hindi words
+const englishPhonemeMap: Record<string, string[]> = {
   // Common words
   hello: ["HH", "AH", "L", "OW"],
   world: ["W", "ER", "L", "D"],
@@ -168,6 +168,60 @@ const phonemeMap: Record<string, string[]> = {
   down: ["D", "AW", "N"]
 };
 
+// Hindi phoneme mapping (using Devanagari romanization)
+const hindiPhonemeMap: Record<string, string[]> = {
+  // Basic Hindi words
+  namaste: ["N", "AH", "M", "AH", "S", "T", "EH"],
+  dhanyawad: ["DH", "AH", "N", "Y", "AH", "W", "AH", "D"],
+  aap: ["AA", "P"],
+  main: ["M", "AY", "N"],
+  hai: ["HH", "AY"],
+  kya: ["K", "Y", "AA"],
+  kaise: ["K", "AY", "S", "EH"],
+  acha: ["AH", "CH", "AA"],
+  thik: ["TH", "IH", "K"],
+  paani: ["P", "AA", "N", "IY"],
+  ghar: ["G", "HH", "AH", "R"],
+  kaam: ["K", "AA", "M"],
+  accha: ["AH", "CH", "CH", "AA"],
+  bhai: ["B", "HH", "AY"],
+  behen: ["B", "EH", "HH", "EH", "N"],
+  mata: ["M", "AA", "T", "AA"],
+  pita: ["P", "IH", "T", "AA"],
+  beta: ["B", "EH", "T", "AA"],
+  beti: ["B", "EH", "T", "IY"],
+  kitab: ["K", "IH", "T", "AA", "B"],
+  padhna: ["P", "AA", "DH", "N", "AA"],
+  likhna: ["L", "IH", "K", "HH", "N", "AA"],
+  sunna: ["S", "UH", "N", "N", "AA"],
+  dekhna: ["D", "EH", "K", "HH", "N", "AA"],
+  jana: ["J", "AA", "N", "AA"],
+  aana: ["AA", "N", "AA"],
+  khana: ["K", "HH", "AA", "N", "AA"],
+  peena: ["P", "IY", "N", "AA"],
+  sona: ["S", "OW", "N", "AA"],
+  jagana: ["J", "AA", "G", "AA", "N", "AA"],
+  khelna: ["K", "HH", "EH", "L", "N", "AA"],
+  hasna: ["HH", "AA", "S", "N", "AA"],
+  rona: ["R", "OW", "N", "AA"],
+  bolna: ["B", "OW", "L", "N", "AA"],
+  samajhna: ["S", "AA", "M", "AA", "JH", "N", "AA"],
+  milna: ["M", "IH", "L", "N", "AA"],
+  dena: ["D", "EH", "N", "AA"],
+  lena: ["L", "EH", "N", "AA"],
+  karna: ["K", "AA", "R", "N", "AA"],
+  hona: ["HH", "OW", "N", "AA"],
+  rahna: ["R", "AA", "HH", "N", "AA"],
+  chalna: ["CH", "AA", "L", "N", "AA"],
+  rukna: ["R", "UH", "K", "N", "AA"],
+  bachna: ["B", "AA", "CH", "N", "AA"],
+  marna: ["M", "AA", "R", "N", "AA"],
+  jeetna: ["J", "IY", "T", "N", "AA"],
+  haarna: ["HH", "AA", "R", "N", "AA"],
+  seekhna: ["S", "IY", "K", "HH", "N", "AA"],
+  sikhana: ["S", "IH", "K", "HH", "AA", "N", "AA"]
+};
+
 // Letter-to-phoneme patterns for unknown words
 const letterPatterns: Record<string, string> = {
   'a': 'AE',
@@ -219,20 +273,21 @@ const letterPatterns: Record<string, string> = {
   'ui': 'UW'
 };
 
-export function textToPhonemes(text: string): string[] {
+export function textToPhonemes(text: string, language: 'en' | 'hi' = 'en'): string[] {
   const words = text.toLowerCase()
     .replace(/[^\w\s]/g, '') // Remove punctuation
     .split(/\s+/)
     .filter(word => word.length > 0);
   
   const phonemes: string[] = [];
+  const phonemeMap = language === 'hi' ? hindiPhonemeMap : englishPhonemeMap;
   
   for (const word of words) {
     if (phonemeMap[word]) {
       phonemes.push(...phonemeMap[word]);
     } else {
       // Fallback: basic letter-to-phoneme conversion
-      phonemes.push(...convertWordToPhonemes(word));
+      phonemes.push(...convertWordToPhonemes(word, language));
     }
     
     // Add short pause between words
@@ -242,9 +297,30 @@ export function textToPhonemes(text: string): string[] {
   return phonemes;
 }
 
-function convertWordToPhonemes(word: string): string[] {
+function convertWordToPhonemes(word: string, language: 'en' | 'hi' = 'en'): string[] {
   const phonemes: string[] = [];
   let i = 0;
+  
+  // Hindi-specific phoneme patterns
+  const hindiPatterns: Record<string, string> = {
+    'aa': 'AA',
+    'ae': 'AE', 
+    'ai': 'AY',
+    'au': 'AW',
+    'bh': 'B HH',
+    'ch': 'CH',
+    'dh': 'D HH',
+    'gh': 'G HH',
+    'jh': 'JH',
+    'kh': 'K HH',
+    'ng': 'NG',
+    'ph': 'P HH',
+    'sh': 'SH',
+    'th': 'T HH',
+    'zh': 'ZH'
+  };
+  
+  const patterns = language === 'hi' ? { ...letterPatterns, ...hindiPatterns } : letterPatterns;
   
   while (i < word.length) {
     let found = false;
@@ -252,8 +328,8 @@ function convertWordToPhonemes(word: string): string[] {
     // Check for two-letter combinations first
     if (i < word.length - 1) {
       const twoChar = word.substring(i, i + 2);
-      if (letterPatterns[twoChar]) {
-        phonemes.push(...letterPatterns[twoChar].split(' '));
+      if (patterns[twoChar]) {
+        phonemes.push(...patterns[twoChar].split(' '));
         i += 2;
         found = true;
       }
@@ -262,8 +338,8 @@ function convertWordToPhonemes(word: string): string[] {
     // Check single letter
     if (!found) {
       const oneChar = word[i];
-      if (letterPatterns[oneChar]) {
-        phonemes.push(letterPatterns[oneChar]);
+      if (patterns[oneChar]) {
+        phonemes.push(patterns[oneChar]);
       }
       i++;
     }

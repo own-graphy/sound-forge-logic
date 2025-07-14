@@ -34,33 +34,100 @@ export const DefaultVoice: VoiceConfig = {
   type: 'low-alto',
 };
 
+// Available bit rates for audio export
+export const BitRates = {
+  low: 64000,    // 64 kbps
+  medium: 128000, // 128 kbps
+  high: 192000,  // 192 kbps
+  ultra: 320000  // 320 kbps
+};
+
 export const VoiceProfiles: Record<string, VoiceConfig> = {
-  'female-alto': {
+  // English Voices
+  'sarah-en': {
     ...DefaultVoice,
-    basePitch: 165,
-    formants: [550, 1700, 2600],
+    basePitch: 185,
+    formants: [580, 1750, 2650],
     gender: 'female',
-    type: 'alto',
+    type: 'English Female - Sarah',
+    loudness: 78,
+    jitter: 0.004,
+    shimmer: 0.025,
   },
-  'female-soprano': {
+  'emma-en': {
     ...DefaultVoice,
-    basePitch: 220,
-    formants: [650, 1850, 2900],
+    basePitch: 210,
+    formants: [620, 1880, 2800],
     gender: 'female',
-    type: 'soprano',
+    type: 'English Female - Emma',
+    loudness: 75,
+    jitter: 0.005,
+    shimmer: 0.030,
   },
-  'male-bass': {
+  'david-en': {
     ...DefaultVoice,
-    basePitch: 110,
-    formants: [450, 1200, 2400],
+    basePitch: 120,
+    formants: [480, 1350, 2450],
     gender: 'male',
-    type: 'bass',
+    type: 'English Male - David',
+    loudness: 80,
+    jitter: 0.008,
+    shimmer: 0.040,
   },
-  'male-tenor': {
+  'michael-en': {
     ...DefaultVoice,
-    basePitch: 140,
-    formants: [500, 1400, 2500],
+    basePitch: 135,
+    formants: [520, 1450, 2550],
     gender: 'male',
-    type: 'tenor',
+    type: 'English Male - Michael',
+    loudness: 82,
+    jitter: 0.006,
+    shimmer: 0.035,
+  },
+  
+  // Hindi Voices
+  'priya-hi': {
+    ...DefaultVoice,
+    basePitch: 195,
+    formants: [600, 1800, 2700],
+    gender: 'female',
+    type: 'Hindi Female - Priya',
+    loudness: 76,
+    jitter: 0.005,
+    shimmer: 0.028,
+    syllablesPerSecond: 4.2, // Slightly slower for Hindi
+  },
+  'kavya-hi': {
+    ...DefaultVoice,
+    basePitch: 175,
+    formants: [560, 1720, 2620],
+    gender: 'female',
+    type: 'Hindi Female - Kavya',
+    loudness: 74,
+    jitter: 0.004,
+    shimmer: 0.032,
+    syllablesPerSecond: 4.0,
+  },
+  'arjun-hi': {
+    ...DefaultVoice,
+    basePitch: 115,
+    formants: [460, 1300, 2400],
+    gender: 'male',
+    type: 'Hindi Male - Arjun',
+    loudness: 78,
+    jitter: 0.007,
+    shimmer: 0.038,
+    syllablesPerSecond: 4.3,
+  },
+  'rohit-hi': {
+    ...DefaultVoice,
+    basePitch: 130,
+    formants: [500, 1400, 2480],
+    gender: 'male',
+    type: 'Hindi Male - Rohit',
+    loudness: 81,
+    jitter: 0.009,
+    shimmer: 0.042,
+    syllablesPerSecond: 4.1,
   },
 };

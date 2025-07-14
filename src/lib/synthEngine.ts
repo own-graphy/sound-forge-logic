@@ -34,6 +34,11 @@ export class SynthEngine {
     const filter1 = this.context.createBiquadFilter();
     const filter2 = this.context.createBiquadFilter();
     const filter3 = this.context.createBiquadFilter();
+    
+    // Add reverb for more natural sound
+    const convolver = this.context.createConvolver();
+    const reverbGain = this.context.createGain();
+    reverbGain.gain.setValueAtTime(0.15, startTime); // Subtle reverb
 
     // Configure oscillator based on phoneme type
     const phonemeConfig = this.getPhonemeConfig(phoneme, config);
@@ -41,44 +46,52 @@ export class SynthEngine {
     oscillator.type = phonemeConfig.type;
     oscillator.frequency.setValueAtTime(phonemeConfig.frequency, startTime);
     
-    // Add natural pitch variation (jitter)
+    // Add natural pitch variation (jitter) with smoother transitions
     const jitterAmount = config.jitter * config.basePitch;
-    oscillator.frequency.linearRampToValueAtTime(
-      phonemeConfig.frequency + (Math.random() - 0.5) * jitterAmount,
+    const pitchVariation = (Math.random() - 0.5) * jitterAmount;
+    oscillator.frequency.exponentialRampToValueAtTime(
+      Math.max(50, phonemeConfig.frequency + pitchVariation),
       startTime + duration
     );
 
-    // Configure formant filters (F1, F2, F3)
+    // Configure formant filters with better Q values for realism
     filter1.type = 'bandpass';
-    filter1.frequency.setValueAtTime(config.formants[0], startTime);
-    filter1.Q.setValueAtTime(4, startTime);
+    filter1.frequency.setValueAtTime(config.formants[0] * phonemeConfig.formantMultiplier, startTime);
+    filter1.Q.setValueAtTime(6, startTime); // Higher Q for clearer formants
 
     filter2.type = 'bandpass';
-    filter2.frequency.setValueAtTime(config.formants[1], startTime);
-    filter2.Q.setValueAtTime(4, startTime);
+    filter2.frequency.setValueAtTime(config.formants[1] * phonemeConfig.formantMultiplier, startTime);
+    filter2.Q.setValueAtTime(8, startTime);
 
     filter3.type = 'bandpass';
-    filter3.frequency.setValueAtTime(config.formants[2], startTime);
+    filter3.frequency.setValueAtTime(config.formants[2] * phonemeConfig.formantMultiplier, startTime);
     filter3.Q.setValueAtTime(4, startTime);
 
-    // Configure envelope (ADSR)
-    const attackTime = 0.02; // 20ms attack
-    const decayTime = 0.05;  // 50ms decay
-    const sustainLevel = 0.7;
-    const releaseTime = 0.1; // 100ms release
+    // Improved envelope with more natural attack/release
+    const attackTime = phonemeConfig.isVoiced ? 0.015 : 0.005; // Faster attack for consonants
+    const decayTime = 0.03;
+    const sustainLevel = 0.8;
+    const releaseTime = phonemeConfig.isVoiced ? 0.08 : 0.04; // Shorter release for consonants
 
     gainNode.gain.setValueAtTime(0, startTime);
-    gainNode.gain.linearRampToValueAtTime(phonemeConfig.amplitude, startTime + attackTime);
-    gainNode.gain.linearRampToValueAtTime(phonemeConfig.amplitude * sustainLevel, startTime + attackTime + decayTime);
+    gainNode.gain.exponentialRampToValueAtTime(phonemeConfig.amplitude * 0.01, startTime + 0.001);
+    gainNode.gain.exponentialRampToValueAtTime(phonemeConfig.amplitude, startTime + attackTime);
+    gainNode.gain.exponentialRampToValueAtTime(phonemeConfig.amplitude * sustainLevel, startTime + attackTime + decayTime);
     gainNode.gain.setValueAtTime(phonemeConfig.amplitude * sustainLevel, startTime + duration - releaseTime);
-    gainNode.gain.linearRampToValueAtTime(0, startTime + duration);
+    gainNode.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
 
-    // Connect the audio graph
+    // Enhanced audio graph with subtle reverb
     oscillator.connect(filter1);
     filter1.connect(filter2);
     filter2.connect(filter3);
     filter3.connect(gainNode);
+    
+    // Main signal
     gainNode.connect(this.masterGain);
+    
+    // Reverb path for natural sound
+    gainNode.connect(reverbGain);
+    reverbGain.connect(this.masterGain);
 
     // Schedule playback
     oscillator.start(startTime);
@@ -94,71 +107,130 @@ export class SynthEngine {
   }
 
   private getPhonemeConfig(phoneme: string, config: VoiceConfig) {
-    // Phoneme-specific configurations
+    // Enhanced phoneme categorization
     const vowels = ['AA', 'AE', 'AH', 'AO', 'AW', 'AY', 'EH', 'ER', 'EY', 'IH', 'IY', 'OW', 'OY', 'UH', 'UW'];
     const fricatives = ['F', 'V', 'TH', 'DH', 'S', 'Z', 'SH', 'ZH', 'HH'];
     const stops = ['P', 'B', 'T', 'D', 'K', 'G'];
     const nasals = ['M', 'N', 'NG'];
     const liquids = ['L', 'R'];
     const glides = ['W', 'Y'];
+    const affricates = ['CH', 'JH'];
 
     let frequency = config.basePitch;
-    let amplitude = config.loudness / 100;
+    let amplitude = (config.loudness / 100) * 0.6; // Reduced overall amplitude for clarity
     let type: OscillatorType = 'sine';
+    let formantMultiplier = 1.0;
+    let isVoiced = true;
 
     if (vowels.includes(phoneme)) {
-      // Vowels: harmonic structure with formants
+      // Vowels: rich harmonic structure
       type = 'sawtooth';
-      amplitude *= 1.0;
+      amplitude *= 1.2;
+      isVoiced = true;
       
-      // Adjust formants based on specific vowel
+      // Vowel-specific frequency and formant adjustments
       switch (phoneme) {
-        case 'IY': // "see"
-          frequency *= 1.1;
+        case 'IY': // "see" - high front vowel
+          frequency *= 1.15;
+          formantMultiplier = 1.1;
           break;
-        case 'AA': // "father"
-          frequency *= 0.9;
+        case 'IH': // "bit" - mid front vowel
+          frequency *= 1.08;
+          formantMultiplier = 1.05;
           break;
-        case 'UW': // "too"
-          frequency *= 0.8;
-          break;
-        case 'EH': // "bed"
+        case 'EH': // "bed" - mid front vowel
           frequency *= 1.05;
+          formantMultiplier = 1.0;
+          break;
+        case 'AE': // "cat" - low front vowel
+          frequency *= 1.02;
+          formantMultiplier = 0.95;
+          break;
+        case 'AA': // "father" - low back vowel
+          frequency *= 0.85;
+          formantMultiplier = 0.9;
+          break;
+        case 'AO': // "thought" - mid back vowel
+          frequency *= 0.9;
+          formantMultiplier = 0.92;
+          break;
+        case 'UH': // "book" - high back vowel
+          frequency *= 0.8;
+          formantMultiplier = 0.85;
+          break;
+        case 'UW': // "too" - high back vowel
+          frequency *= 0.75;
+          formantMultiplier = 0.8;
+          break;
+        case 'ER': // "bird" - r-colored vowel
+          frequency *= 0.95;
+          formantMultiplier = 0.88;
+          break;
+        case 'AH': // "but" - central vowel
+          frequency *= 0.98;
+          formantMultiplier = 0.95;
           break;
       }
     } else if (fricatives.includes(phoneme)) {
-      // Fricatives: noise-like
+      // Fricatives: noise-like with high frequency content
       type = 'square';
-      amplitude *= 0.6;
-      frequency *= 2; // Higher frequency content
+      amplitude *= 0.7;
+      frequency *= 3;
+      formantMultiplier = 1.5;
+      isVoiced = ['V', 'DH', 'Z', 'ZH'].includes(phoneme);
+      
+      if (phoneme === 'S' || phoneme === 'Z') {
+        frequency *= 1.5; // Even higher for sibilants
+      }
     } else if (stops.includes(phoneme)) {
-      // Stops: short burst
+      // Stops: brief burst with sharp attack
+      type = 'square';
+      amplitude *= 1.0;
+      frequency *= 2;
+      formantMultiplier = 1.2;
+      isVoiced = ['B', 'D', 'G'].includes(phoneme);
+    } else if (affricates.includes(phoneme)) {
+      // Affricates: combination of stop + fricative
       type = 'square';
       amplitude *= 0.8;
-      frequency *= 1.5;
+      frequency *= 2.5;
+      formantMultiplier = 1.3;
+      isVoiced = phoneme === 'JH';
     } else if (nasals.includes(phoneme)) {
-      // Nasals: lower formants
+      // Nasals: lower formants, muffled quality
       type = 'triangle';
-      amplitude *= 0.9;
+      amplitude *= 1.1;
       frequency *= 0.7;
+      formantMultiplier = 0.8;
+      isVoiced = true;
     } else if (liquids.includes(phoneme)) {
-      // Liquids: smooth transitions
+      // Liquids: smooth, vowel-like
       type = 'sine';
-      amplitude *= 0.8;
+      amplitude *= 0.9;
+      frequency *= 0.85;
+      formantMultiplier = 0.9;
+      isVoiced = true;
     } else if (glides.includes(phoneme)) {
       // Glides: smooth formant transitions
       type = 'sine';
-      amplitude *= 0.7;
+      amplitude *= 0.8;
+      frequency *= 0.9;
+      formantMultiplier = 0.95;
+      isVoiced = true;
     } else {
-      // Default
+      // Default for unknown phonemes
       type = 'sine';
-      amplitude *= 0.5;
+      amplitude *= 0.6;
+      formantMultiplier = 1.0;
+      isVoiced = false;
     }
 
     return {
-      frequency,
-      amplitude,
-      type
+      frequency: Math.max(50, frequency), // Ensure minimum frequency
+      amplitude: Math.min(1.0, amplitude), // Cap amplitude
+      type,
+      formantMultiplier,
+      isVoiced
     };
   }
 
@@ -184,8 +256,8 @@ export class SynthEngine {
     }
   }
 
-  // Export to WAV for download
-  async generateAudioBuffer(phonemes: string[], config: VoiceConfig): Promise<AudioBuffer> {
+  // Export to WAV for download with configurable bit rate
+  async generateAudioBuffer(phonemes: string[], config: VoiceConfig, bitRate: number = 128000): Promise<AudioBuffer> {
     const phonemeDuration = 1 / config.syllablesPerSecond;
     const pauseDuration = phonemeDuration * 0.3;
     

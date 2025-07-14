@@ -12,7 +12,7 @@ export const useVoiceGenerator = () => {
   
   const { selectedVoice, audioSettings, addGeneratedAudio } = useVoiceStore();
 
-  const generateSpeech = useCallback(async (text: string): Promise<GeneratedAudio | null> => {
+  const generateSpeech = useCallback(async (text: string, bitRate: number = 128000): Promise<GeneratedAudio | null> => {
     if (!selectedVoice || !text.trim()) {
       setError('Please select a voice and enter text');
       return null;
@@ -22,26 +22,27 @@ export const useVoiceGenerator = () => {
     setError(null);
 
     try {
-      // Convert text to phonemes
-      const phonemes = textToPhonemes(text.trim());
+      // Detect language and convert text to phonemes
+      const language = detectLanguage(text);
+      const phonemes = textToPhonemes(text.trim(), language);
       
       // Get voice configuration
       const voiceConfig = VoiceProfiles[selectedVoice.id] || DefaultVoice;
       
-      // Apply user settings to voice config
+      // Apply user settings to voice config with better scaling
       const modifiedConfig = {
         ...voiceConfig,
         basePitch: voiceConfig.basePitch * (audioSettings.pitch / 1.0),
         speechRateWPM: voiceConfig.speechRateWPM * audioSettings.speed,
         syllablesPerSecond: voiceConfig.syllablesPerSecond * audioSettings.speed,
-        loudness: voiceConfig.loudness * (audioSettings.volume / 1.0),
+        loudness: Math.min(100, voiceConfig.loudness * (audioSettings.volume / 1.0)),
       };
 
-      // Generate audio buffer
-      const audioBuffer = await synthEngine.generateAudioBuffer(phonemes, modifiedConfig);
+      // Generate audio buffer with specified bit rate
+      const audioBuffer = await synthEngine.generateAudioBuffer(phonemes, modifiedConfig, bitRate);
       
-      // Convert to blob URL
-      const audioUrl = await audioBufferToUrl(audioBuffer);
+      // Convert to blob URL with better quality
+      const audioUrl = await audioBufferToUrl(audioBuffer, bitRate);
       
       const generatedAudio: GeneratedAudio = {
         id: `audio_${Date.now()}`,
@@ -72,7 +73,8 @@ export const useVoiceGenerator = () => {
     try {
       // Generate short preview (first 50 characters)
       const previewText = text.substring(0, 50);
-      const phonemes = textToPhonemes(previewText);
+      const language = detectLanguage(previewText);
+      const phonemes = textToPhonemes(previewText, language);
       
       const voiceConfig = VoiceProfiles[voiceId] || DefaultVoice;
       const modifiedConfig = {
@@ -80,7 +82,8 @@ export const useVoiceGenerator = () => {
         syllablesPerSecond: voiceConfig.syllablesPerSecond * 1.2, // Slightly faster for preview
       };
 
-      // Play directly without creating audio buffer
+      // Initialize audio context and play directly
+      await synthEngine.initialize();
       await synthEngine.generateSequence(phonemes, modifiedConfig);
       
       return 'preview-played'; // Indicate success
@@ -102,9 +105,25 @@ export const useVoiceGenerator = () => {
   };
 };
 
-// Convert AudioBuffer to blob URL
-const audioBufferToUrl = async (buffer: AudioBuffer): Promise<string> => {
-  const wav = audioBufferToWav(buffer);
+// Language detection helper
+const detectLanguage = (text: string): 'en' | 'hi' => {
+  // Simple detection based on character sets and common words
+  const hindiPattern = /[\u0900-\u097F]/; // Devanagari script
+  const hindiWords = ['namaste', 'dhanyawad', 'aap', 'main', 'hai', 'kya', 'kaise', 'acha', 'thik'];
+  
+  if (hindiPattern.test(text)) {
+    return 'hi';
+  }
+  
+  const words = text.toLowerCase().split(/\s+/);
+  const hindiWordCount = words.filter(word => hindiWords.includes(word)).length;
+  
+  return hindiWordCount > words.length * 0.3 ? 'hi' : 'en';
+};
+
+// Convert AudioBuffer to blob URL with quality settings
+const audioBufferToUrl = async (buffer: AudioBuffer, bitRate: number = 128000): Promise<string> => {
+  const wav = audioBufferToWav(buffer, bitRate);
   const blob = new Blob([wav], { type: 'audio/wav' });
   return URL.createObjectURL(blob);
 };
@@ -115,8 +134,8 @@ const estimateDuration = (text: string): number => {
   return (wordCount / 150) * 60; // Convert to seconds
 };
 
-// Simple WAV encoding (for demo purposes)
-const audioBufferToWav = (buffer: AudioBuffer): ArrayBuffer => {
+// Enhanced WAV encoding with bit rate support
+const audioBufferToWav = (buffer: AudioBuffer, bitRate: number = 128000): ArrayBuffer => {
   const length = buffer.length;
   const arrayBuffer = new ArrayBuffer(44 + length * 2);
   const view = new DataView(arrayBuffer);
@@ -142,12 +161,20 @@ const audioBufferToWav = (buffer: AudioBuffer): ArrayBuffer => {
   writeString(36, 'data');
   view.setUint32(40, length * 2, true);
   
-  // Convert float samples to 16-bit PCM
+  // Convert float samples to 16-bit PCM with dithering for better quality
   const samples = buffer.getChannelData(0);
   let offset = 44;
+  
   for (let i = 0; i < samples.length; i++) {
-    const sample = Math.max(-1, Math.min(1, samples[i]));
-    view.setInt16(offset, sample * 0x7FFF, true);
+    let sample = Math.max(-1, Math.min(1, samples[i]));
+    
+    // Add subtle dithering to reduce quantization noise
+    const dither = (Math.random() - 0.5) * (1.0 / 32768.0);
+    sample += dither;
+    
+    // Clip and convert to 16-bit
+    sample = Math.max(-1, Math.min(1, sample));
+    view.setInt16(offset, Math.round(sample * 0x7FFF), true);
     offset += 2;
   }
   

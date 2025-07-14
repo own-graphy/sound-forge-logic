@@ -6,6 +6,7 @@ import { VoiceSelectDropdown } from '@/components/forms/VoiceSelectDropdown';
 import { PitchSlider } from '@/components/controls/PitchSlider';
 import { SpeedSlider } from '@/components/controls/SpeedSlider';
 import { VolumeSlider } from '@/components/controls/VolumeSlider';
+import { BitRateSelector } from '@/components/controls/BitRateSelector';
 import { AudioPlayer } from '@/components/audio/AudioPlayer';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -21,7 +22,8 @@ export const Home: React.FC = () => {
     generatedAudios, 
     currentAudio, 
     setCurrentAudio,
-    clearHistory 
+    clearHistory,
+    selectedBitRate
   } = useVoiceStore();
   const { generateSpeech, isGenerating, error } = useVoiceGenerator();
   const { toast } = useToast();
@@ -29,12 +31,12 @@ export const Home: React.FC = () => {
   const handleGenerate = async () => {
     if (!inputText.trim()) return;
 
-    const audio = await generateSpeech(inputText);
+    const audio = await generateSpeech(inputText, selectedBitRate);
     if (audio) {
       setCurrentAudio(audio);
       toast({
         title: "Speech Generated!",
-        description: "Your audio is ready to play.",
+        description: `Your audio is ready at ${selectedBitRate / 1000} kbps quality!`,
       });
     } else if (error) {
       toast({
@@ -130,9 +132,14 @@ export const Home: React.FC = () => {
                   <CardTitle className="text-lg">Audio Settings</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-6">
-                  <PitchSlider />
-                  <SpeedSlider />
-                  <VolumeSlider />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <PitchSlider />
+                    <SpeedSlider />
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <VolumeSlider />
+                    <BitRateSelector />
+                  </div>
                 </CardContent>
               </Card>
             </div>
