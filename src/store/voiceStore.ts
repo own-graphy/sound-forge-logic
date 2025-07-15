@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { Voice, AudioSettings, GeneratedAudio } from '../types';
+import { voiceProfiles } from '../lib/voiceProfiles';
 
 interface VoiceStore {
   // State
@@ -28,40 +29,14 @@ const defaultAudioSettings: AudioSettings = {
   clarity: 85,
 };
 
-const defaultVoices: Voice[] = [
-  {
-    id: 'voice-1',
-    name: 'Sarah',
-    gender: 'female',
-    language: 'en-US',
-    accent: 'American',
-    description: 'Professional, clear female voice'
-  },
-  {
-    id: 'voice-2',
-    name: 'James',
-    gender: 'male',
-    language: 'en-US',
-    accent: 'American',
-    description: 'Deep, authoritative male voice'
-  },
-  {
-    id: 'voice-3',
-    name: 'Emma',
-    gender: 'female',
-    language: 'en-GB',
-    accent: 'British',
-    description: 'Elegant British female voice'
-  },
-  {
-    id: 'voice-4',
-    name: 'Oliver',
-    gender: 'male',
-    language: 'en-GB',
-    accent: 'British',
-    description: 'Sophisticated British male voice'
-  },
-];
+const defaultVoices: Voice[] = voiceProfiles.map(profile => ({
+  id: profile.id,
+  name: profile.name,
+  gender: profile.gender,
+  language: profile.language === 'hindi' ? 'hi-IN' : 'en-US',
+  accent: profile.language === 'hindi' ? 'Indian' : 'American',
+  description: `${profile.gender === 'female' ? 'Female' : 'Male'} ${profile.language} voice`
+}));
 
 export const useVoiceStore = create<VoiceStore>((set, get) => ({
   voices: defaultVoices,
