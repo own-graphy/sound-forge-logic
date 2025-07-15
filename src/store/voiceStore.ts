@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { Voice, AudioSettings, GeneratedAudio } from '../types';
-import { voiceProfiles } from '../lib/voiceSynthesizer';
+import { voiceProfiles } from '../lib/voiceProfiles';
 
 interface VoiceStore {
   // State
