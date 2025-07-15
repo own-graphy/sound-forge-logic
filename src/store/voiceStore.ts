@@ -9,7 +9,6 @@ interface VoiceStore {
   generatedAudios: GeneratedAudio[];
   isGenerating: boolean;
   currentAudio: GeneratedAudio | null;
-  selectedBitRate: number;
   
   // Actions
   setVoices: (voices: Voice[]) => void;
@@ -18,7 +17,6 @@ interface VoiceStore {
   addGeneratedAudio: (audio: GeneratedAudio) => void;
   setIsGenerating: (isGenerating: boolean) => void;
   setCurrentAudio: (audio: GeneratedAudio | null) => void;
-  setSelectedBitRate: (bitRate: number) => void;
   clearHistory: () => void;
 }
 
@@ -31,9 +29,8 @@ const defaultAudioSettings: AudioSettings = {
 };
 
 const defaultVoices: Voice[] = [
-  // English Voices
   {
-    id: 'sarah-en',
+    id: 'voice-1',
     name: 'Sarah',
     gender: 'female',
     language: 'en-US',
@@ -41,62 +38,28 @@ const defaultVoices: Voice[] = [
     description: 'Professional, clear female voice'
   },
   {
-    id: 'emma-en',
-    name: 'Emma',
-    gender: 'female',
-    language: 'en-US',
-    accent: 'American',
-    description: 'Warm, friendly female voice'
-  },
-  {
-    id: 'david-en',
-    name: 'David',
+    id: 'voice-2',
+    name: 'James',
     gender: 'male',
     language: 'en-US',
     accent: 'American',
     description: 'Deep, authoritative male voice'
   },
   {
-    id: 'michael-en',
-    name: 'Michael',
-    gender: 'male',
-    language: 'en-US',
-    accent: 'American',
-    description: 'Natural, conversational male voice'
-  },
-  
-  // Hindi Voices
-  {
-    id: 'priya-hi',
-    name: 'Priya',
+    id: 'voice-3',
+    name: 'Emma',
     gender: 'female',
-    language: 'hi-IN',
-    accent: 'Indian',
-    description: 'Clear, melodious Hindi female voice'
+    language: 'en-GB',
+    accent: 'British',
+    description: 'Elegant British female voice'
   },
   {
-    id: 'kavya-hi',
-    name: 'Kavya',
-    gender: 'female',
-    language: 'hi-IN',
-    accent: 'Indian',
-    description: 'Soft, expressive Hindi female voice'
-  },
-  {
-    id: 'arjun-hi',
-    name: 'Arjun',
+    id: 'voice-4',
+    name: 'Oliver',
     gender: 'male',
-    language: 'hi-IN',
-    accent: 'Indian',
-    description: 'Strong, confident Hindi male voice'
-  },
-  {
-    id: 'rohit-hi',
-    name: 'Rohit',
-    gender: 'male',
-    language: 'hi-IN',
-    accent: 'Indian',
-    description: 'Smooth, professional Hindi male voice'
+    language: 'en-GB',
+    accent: 'British',
+    description: 'Sophisticated British male voice'
   },
 ];
 
@@ -107,7 +70,6 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
   generatedAudios: [],
   isGenerating: false,
   currentAudio: null,
-  selectedBitRate: 128000, // Default to medium quality
 
   setVoices: (voices) => set({ voices }),
   
@@ -126,8 +88,6 @@ export const useVoiceStore = create<VoiceStore>((set, get) => ({
   setIsGenerating: (isGenerating) => set({ isGenerating }),
   
   setCurrentAudio: (audio) => set({ currentAudio: audio }),
-  
-  setSelectedBitRate: (bitRate) => set({ selectedBitRate: bitRate }),
   
   clearHistory: () => set({ generatedAudios: [] }),
 }));
